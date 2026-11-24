@@ -12,6 +12,7 @@ import logging
 
 from dotenv import dotenv_values, load_dotenv
 
+from agent_socle import ihm
 from agent_socle import config_commune
 from agent_socle import auth_tools, env_tools, lien_manager
 from tools import client_version, cucumber_delivery, cucumber_incidents, cucumber_init_fix, cucumber_library_upgrade, cucumber_lock, cucumber_modules, cucumber_test_data, standard_version, standard_version_task
@@ -107,6 +108,11 @@ PERSISTENT_KEYS = ("cucumber_project", "cucumber_repo", "cucumber_client_name", 
                    "cs_project", "cs_repo", "cs_client", "cs_application", "cs_source_schema", "cs_std_repo",
                    "integ_selected") + tuple(f"{prefix}{name}" for prefix in ("", "integ_") for name in (
                        "open_epics_only", "search_links", "search_project", "search_team", "search_statuses", "search_labels"))
+
+# Travaux en cours (agent_socle.ihm) : tâches de l'agent lancées hors de la session, contexte de page de l'auteur
+ihm.AGENT, ihm.CONTEXTE = "cucumber", ("cs_project", "cucumber_project")
+ihm.restaurer_contexte()
+ihm.travaux_en_cours()
 
 
 def keep_page_state() -> None:
@@ -3271,3 +3277,5 @@ if PAGE == "cucumber-avance":
 # ONGLET CONNAISSANCES PARTAGÉES : RECHERCHE, APERÇU, STATUT, IMPORT
 # ---------------------------------------------------------
 
+# Choix de la page enregistrés pour la reconnexion (.tmp/sessions/<auteur>/<agent>.json)
+ihm.memoriser_contexte()
