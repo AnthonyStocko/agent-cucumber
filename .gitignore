@@ -1,0 +1,34 @@
+# Configuration personnelle (identifiants, jetons) : partir de .env.example
+.env
+.env.bak
+
+# Environnements Python et caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Données de travail de l'agent (clones, mémoire, journaux, consommation de tokens)
+.tmp/
+
+# Livrables produits par ticket à la racine du projet
+*.patch
+*.patch.*.txt
+*.diff
+*-cadrage.md
+*-release-note.md
+*-postmerge-cucumber.md
+*-cucumber-couverture.md
+*-cucumber-sante.md
+*-decoupage.json
+*-tache-*.md
+
+# Outils locaux
+.idea/
+.vscode/
+.agents/
+.claude/
+*.stackdump
+# Connexion OIDC : identifiants du fournisseur d'identité (modèle : .streamlit/secrets.toml.example)
+.streamlit/secrets.toml
+.pytest_cache/
