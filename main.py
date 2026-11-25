@@ -80,6 +80,7 @@ from agent_socle import (bitbucket_std,
     skills)
 from agent_socle.jira_cli import attach_files, create_or_get_issue
 from tools import cucumber_java21, cucumber_repo_setup, cucumber_simple, cucumber_simple_init
+from tools import cucumber_boucle_run
 from agent_socle import jira_guard, odatio_docs
 from agent_socle.chemins import DATA_DIR
 # Dossier des modules du socle (CLI lancées par Claude : db_tools, bitbucket_code, groundcover_tools…)
@@ -489,6 +490,7 @@ def main():
     parser.add_argument("--fix-init-from-import", type=int, default=0, help="generate-cucumber-client : l'init du run importé n° N échoue dans les compléments écrits par l'agent : il corrige ces fichiers seuls (contrôlés), puis rejoue l'init si CUCUMBER_AGENT_JENKINS=1, sinon livre <client>-cucumber-init-correction.patch")
     parser.add_argument("--modules-exclus", default=None, help="generate-cucumber-client : modules exclus du périmètre testé (codes séparés par des virgules, ex. TMS ; vide : aucun), transmis par l'IHM depuis le profil client ; enregistrés dans le profil s'ils en diffèrent, affichés en tête du journal")
     parser.add_argument("--from-import", type=int, default=0, help="generate-cucumber-client --complete : lots « correction » des échecs « test » des scénarios de l'agent de l'import n° N")
+    parser.add_argument("--boucle-correction", action="store_true", help="generate-cucumber-client : boucle de correction autonome à partir de l'import --from-import (défaut : le dernier) : échecs dus à l'agent envoyés à agent-dev-tool-savoye, qui corrige le code et les prompts de l'agent et fusionne sur main ; régénération des seuls scénarios en échec, run de la feature, au plus CUCUMBER_BOUCLE_MAX_ITERATIONS fois (3). Lancée automatiquement à la fin d'un --run-jenkins (CUCUMBER_BOUCLE=0 la désactive)")
     parser.add_argument("--run-jenkins", action="store_true", help="generate-cucumber-client : pousse le worktree sur la branche lue par le job (profil), contrôle le commit, lance le job Jenkins du client, suit le build puis importe sa console et ses rapports (bilan)")
     parser.add_argument("--run-dry", action="store_true", help="generate-cucumber-client --run-jenkins : aperçu sans push ni lancement (0 token) — job, branche, rôles des paramètres, paramètres envoyés (secrets masqués) et nombre de tests attendus pour --run-tags")
     parser.add_argument("--run-no-push", action="store_true", help="generate-cucumber-client --run-jenkins : rien n'est commité ni poussé, le job exécute la branche telle qu'elle est sur le dépôt client (--run-branch, à défaut celle du profil) ; lecture seule")
@@ -543,6 +545,9 @@ def main():
         args.issue = args.issue or cucumber_tools.work_id(args.client_name)
         args.project = args.project or args.client_name.upper()
         args.generate_cucumber = True
+        if args.boucle_correction:
+            # La boucle ne prend pas le verrou du client : chacune de ses étapes est un processus main.py qui le prend
+            sys.exit(cucumber_boucle_run.main(args))
         apply_excluded_modules(args.client_name, args.modules_exclus)
         # Une seule génération à la fois par client : une seconde recréerait le worktree pendant la première
         if not cucumber_lock.read_only(args):
@@ -5956,8 +5961,12 @@ def run_cucumber_client(args, work_key: str, local_client_repo: str, local_std_r
         return preview_cucumber_jenkins(client, args.run_tags, args.cucumber_repo, args.cucumber_base_branch,
                                         not args.run_no_push, args.run_branch)
     if args.run_jenkins:
-        return run_cucumber_jenkins(client, args.run_tags, project, args.cucumber_repo, args.cucumber_base_branch,
+        code = run_cucumber_jenkins(client, args.run_tags, project, args.cucumber_repo, args.cucumber_base_branch,
                                     local_client_repo, not args.run_no_push, args.run_branch)
+        if code != 2 and not args.run_no_push:
+            # Échecs dus à l'agent : boucle de correction autonome avec agent-dev-tool-savoye (processus détaché)
+            cucumber_boucle_run.declencher(client, sys.argv[1:])
+        return code
     base = cucumber_tools.base_ref(cucumber_repo_dir, args.cucumber_base_branch)
     if not base:
         print(f"❌ Branche '{args.cucumber_base_branch}' introuvable dans {cucumber_repo_dir}.")
