@@ -19,6 +19,10 @@ Il est lancé et supervisé par `agent-manager-savoye` (port 8507) et peut être
 - Tests : `..\agent-scrum-master\venv\Scripts\python.exe -m pytest -q tests` (depuis ce dossier). Aucun linter.
 - Données : `AGENT_DATA_DIR` (défaut `..\agent-scrum-master`) ; par client : `.tmp/cucumber/<client>/` (worktree,
   `etat.json`, `imports/<n>/analyse.json`, `generation.lock`, `boucles/`).
+- Configuration : page ⚙️ de l'IHM, écrite dans `<AGENT_DATA_DIR>/.env` (le seul lu par l'IHM et `main.py` ; pendant
+  le chantier, celui d'agent-scrum-master, partagé). Groundcover : API, `CUCUMBER_GROUNDCOVER_FILTER` (à défaut
+  `logs.groundcover_filtre` de l'application du même nom dans `commun.toml` de `SAVOYE_CONFIG_DIR`, jamais écrit) et
+  serveur MCP ; variables de `SAVOYE_VARIABLES` en lecture seule, jamais réécrites.
 
 ```
 main.py                     CLI (étapes generate-cucumber-client, postmerge, restore-config)
@@ -32,6 +36,7 @@ tools/cucumber_lock.py      verrou par client des générations (un seul process
 tools/cucumber_boucle.py    boucle de correction autonome : classement, demande, arrêt, anti-triche (0 token)
 tools/cucumber_devtool.py   client de l'API locale d'agent-dev-tool-savoye (démarrage via le superviseur)
 tools/cucumber_boucle_run.py  orchestration de la boucle (processus détaché, lancé à la fin d'un run)
+tools/cucumber_configuration.py  page ⚙️ Configuration : Groundcover (composant agent_socle.ihm_groundcover), filtre repris de commun.toml
 tests/                      tests unitaires (pytest) ; tests/reference/ : jeu de référence du classement
 ```
 
