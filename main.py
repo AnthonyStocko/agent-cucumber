@@ -80,7 +80,7 @@ from agent_socle import (bitbucket_std,
     skills)
 from agent_socle.jira_cli import attach_files, create_or_get_issue
 from tools import cucumber_java21, cucumber_repo_setup, cucumber_simple, cucumber_simple_init
-from tools import cucumber_boucle_run
+from tools import cucumber_boucle_run, cucumber_configuration
 from agent_socle import jira_guard, odatio_docs
 from agent_socle.chemins import DATA_DIR
 # Dossier des modules du socle (CLI lancées par Claude : db_tools, bitbucket_code, groundcover_tools…)
@@ -146,6 +146,8 @@ logging.getLogger("dotenv.main").setLevel(logging.ERROR)
 load_dotenv(os.path.join(DATA_DIR, ".env"))  # .env de AGENT_DATA_DIR, jamais copié
 if env_tools.check_env(".env"):
     print(f"[CONFIGURATION] ⚠️ {env_tools.check_line(env_tools.check_env('.env'))}")
+# Messages Groundcover du socle : page Configuration d'agent-cucumber, même lancé hors de son IHM
+cucumber_configuration.designer_page()
 
 
 # ---------------------------------------------------------------------------
@@ -543,6 +545,10 @@ def main():
         if not args.client_name:
             parser.error("Nom du client inconnu : passez --client-name ou --client-repo")
         args.issue = args.issue or cucumber_tools.work_id(args.client_name)
+        # Filtre des logs groundcover : à défaut du .env, celui de l'application dans commun.toml du manager
+        if cucumber_configuration.appliquer_filtre(args.client_name):
+            print(f"[LOGS] Filtre groundcover de l'application {args.client_name} (commun.toml) : "
+                  f"{os.environ[cucumber_configuration.FILTER_ENV]}.")
         args.project = args.project or args.client_name.upper()
         args.generate_cucumber = True
         if args.boucle_correction:

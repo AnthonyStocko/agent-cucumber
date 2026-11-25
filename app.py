@@ -14,7 +14,7 @@ from dotenv import dotenv_values, load_dotenv
 
 from agent_socle import ihm
 from agent_socle import config_commune
-from agent_socle import auth_tools, env_tools, lien_manager
+from agent_socle import auth_tools, env_tools, ihm_groundcover, lien_manager
 from tools import client_version, cucumber_delivery, cucumber_incidents, cucumber_init_fix, cucumber_library_upgrade, cucumber_lock, cucumber_modules, cucumber_test_data, standard_version, standard_version_task
 from tools import (cucumber_a_revoir,
     cucumber_java21,
@@ -46,7 +46,7 @@ from agent_socle.jira_tools import get_jira_issue_summary
 from tools import cucumber_overview, cucumber_set_aside, db_restore
 # Lancement de main.py et journal : socle (commun aux IHM des agents)
 from agent_socle.ihm import interruption_cause, journal_phrases, render_technical_journal, run_main_step
-from tools import cucumber_env_diagnosis, cucumber_copied_config
+from tools import cucumber_env_diagnosis, cucumber_copied_config, cucumber_configuration
 from agent_socle import ui_timer
 from agent_socle import jenkins_tools
 from agent_socle.chemins import DATA_DIR
@@ -90,6 +90,8 @@ load_dotenv(ENV_PATH, override=True)
 config_commune.reappliquer()
 if not os.getenv("CLAUDE_CONFIG_DIR", "").strip():
     os.environ["CLAUDE_CONFIG_DIR"] = os.environ["AGENT_SHELL_CLAUDE_CONFIG_DIR"]
+# Messages Groundcover du socle : page Configuration de cet agent (transmis à main.py par l'environnement)
+cucumber_configuration.designer_page()
 
 # Connexion OIDC (AGENT_AUTH) : rien n'est affiché ni exécuté avant elle
 CONNECTED = auth_tools.require_login(st)
@@ -99,7 +101,7 @@ st.title("🤖 Tableau de bord - Agent Scrum Master")
 
 # Navigation : seule la page choisie est exécutée (st.tabs exécutait toutes les pages à chaque interaction, avec
 # leurs appels réseau et les fragments à rafraîchissement automatique de l'onglet Cucumber)
-PAGES = {"cucumber": "🥒 Cucumber", "cucumber-avance": "🥒 Cucumber (avancé)"}
+PAGES = {"cucumber": "🥒 Cucumber", "cucumber-avance": "🥒 Cucumber (avancé)", "configuration": "⚙️ Configuration"}
 NAV_KEY = "nav_page"
 # Réglages saisis sur une page et gardés quand on en change (Streamlit efface l'état d'un widget non affiché) :
 # seulement des widgets sans valeur par défaut passée en paramètre (sinon avertissement de Streamlit)
@@ -3201,6 +3203,47 @@ def render_cucumber_review(client: str, state: dict) -> None:
             with open(coverage_file, "r", encoding="utf-8", errors="replace") as f:
                 st.markdown(f.read())
 
+
+def render_configuration() -> None:
+    """
+    Page ⚙️ Configuration : Groundcover (accès à l'API, filtre des logs, serveur MCP) par le composant commun
+    agent_socle.ihm_groundcover, écrit dans le .env de l'agent (ENV_PATH, lu par main.py). Variables transmises par le
+    manager : lecture seule, jamais réécrites.
+    """
+    st.markdown("### :material/settings: Configuration de l'agent")
+    st.caption(f"Valeurs enregistrées dans {os.path.abspath(ENV_PATH)} (lu par l'IHM et par main.py).")
+    if config_commune.gerees():
+        st.info("Transmises par le manager, prioritaires sur le .env et non modifiables ici : "
+                + ", ".join(config_commune.gerees()) + ".", icon=":material/lock:")
+    client = (st.session_state.get("cs_project") or st.session_state.get("cucumber_project") or "").strip()
+    with st.form("configuration_groundcover"):
+        valeurs = ihm_groundcover.champs_acces_api()
+        effectif = cucumber_configuration.filtre(client)
+        if effectif["source"] == "commun.toml":
+            st.caption(f"Filtre vide : celui de l'application {client} dans commun.toml du manager est utilisé "
+                       f"({effectif['valeur']}).")
+        elif not effectif["valeur"]:
+            st.caption("Sans filtre ici ni dans l'application du projet (commun.toml du manager), les logs "
+                       "groundcover ne sont pas lus.")
+        st.markdown("---")
+        compte = os.getenv("CLAUDE_CONFIG_DIR", "").strip() or "dossier par défaut de Claude Code"
+        valeurs.update(ihm_groundcover.champs_serveurs_mcp(compte=compte))
+        envoye = st.form_submit_button("Enregistrer", type="primary", icon=":material/save:")
+    a_ecrire = ihm_groundcover.valider(valeurs) if envoye else None
+    if a_ecrire is not None:
+        try:
+            cucumber_configuration.enregistrer(ENV_PATH, a_ecrire)
+        except ValueError as e:
+            st.error(f"Configuration non enregistrée correctement : {e}.", icon=":material/error:")
+        else:
+            st.success("Configuration enregistrée.", icon=":material/check_circle:")
+            st.rerun()
+    # Boutons hors formulaire : « Se connecter à Groundcover » et « Tester »
+    ihm_groundcover.etat_et_connexion()
+
+
+if PAGE == "configuration":
+    render_configuration()
 
 # ---------------------------------------------------------
 # ONGLET CUCUMBER : PARCOURS EN 7 ÉTAPES, DU CHOIX DES TÂCHES AU PATCH VERT
