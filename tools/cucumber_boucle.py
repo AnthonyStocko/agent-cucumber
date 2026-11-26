@@ -87,8 +87,9 @@ def categorie(echec: dict) -> str:
     return resultat
 
 
-def classer(analysis: dict) -> list:
-    """Échecs d'une analyse d'import, chacun avec sa catégorie de boucle (`categorie_boucle`)."""
+def classer(analysis: dict, defauts_agent: list = ()) -> list:
+    """Échecs d'une analyse d'import, chacun avec sa catégorie de boucle (`categorie_boucle`). `defauts_agent` :
+    échecs hors Jenkins dus à l'agent lui-même (cucumber_agent_defects.failures), toujours AGENT."""
     echecs = [dict(e) for e in analysis.get("echecs") or []]
     vus = {e.get("id") for e in echecs}
     for identifiant, resultat in (analysis.get("resultats") or {}).items():
@@ -100,6 +101,8 @@ def classer(analysis: dict) -> list:
     init = analysis.get("init_en_echec") or {}
     for echec in echecs:
         echec["categorie_boucle"] = ENVIRONNEMENT if init else categorie(echec)
+    # Défaut de l'agent (contrôle de fichiers, leçon, prompt) : indépendant de l'init et de l'environnement du run
+    echecs += [{**dict(d), "categorie_boucle": AGENT} for d in defauts_agent or () if d.get("id") not in vus]
     return echecs
 
 

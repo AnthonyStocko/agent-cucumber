@@ -373,7 +373,7 @@ def test_system_prompt_describes_constats(main_module):
              "sources_std compilation_agent environnement_block donnees_tool donnees_test").split()
     text = main_module.render_prompt("cucumber_client_lot_systeme", **{n: n for n in names}, max_turns="40",
                                      tour_alerte=30)
-    assert "=== CONSTATS" in text and '"constats": [{"type": "donnee_introuvable|ecart_spec_code|defaut_code|comportement_surprenant|tautologique"' in text
+    assert "=== CONSTATS" in text and '"constats": [{"type": "donnee_introuvable|ecart_spec_code|defaut_code|comportement_surprenant|tautologique|defaut_agent"' in text
     assert all(kind in text for kind in ct.CONSTAT_TYPES) and "Il n'est pas tautologique" in text
     assert "=== CONTRÔLES (Then) ===" in text and "jamais un comptage ou une recherche globale" in text
 

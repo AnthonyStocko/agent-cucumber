@@ -70,6 +70,9 @@ class Operations:
         from tools import cucumber_import
         return max((e["numero"] for e in cucumber_import.load_index(self.client).get("imports", [])), default=0)
 
+    def defauts_agent(self) -> list:
+        return defauts_agent(self.client)
+
     def scenarios_agent(self) -> dict:
         from tools import cucumber_import, cucumber_tools
         return cucumber_import.agent_scenarios(cucumber_tools.load_state(self.client))
@@ -160,6 +163,10 @@ class Operations:
             return subprocess.run([sys.executable, os.path.join(RACINE, "main.py"), *self.argv, *options],
                                   stdout=sortie, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=env).returncode
 
+    def reprendre(self) -> int:
+        """Lots restés en erreur (fichiers, compilation) repris avec l'agent corrigé : correction et vérification."""
+        return self._etape(["--resume"])
+
     def regenerer(self, numero: int) -> int:
         return self._etape(["--complete", "--from-import", str(numero)])
 
@@ -221,7 +228,7 @@ def _details(ops, echecs: list, analyse: dict) -> list:
     for e in cb.a_envoyer(echecs):
         resultat = resultats.get(e.get("id"), {})
         out.append(cb.echec_pour_demande(
-            e, trace=resultat.get("journal") or resultat.get("message") or "",
+            e, trace=e.get("trace") or resultat.get("journal") or resultat.get("message") or "",
             definition=cb.step_definition(ops.worktree, e.get("step", "")),
             applicatif=cb.code_applicatif(ops.client_root, str(resultat.get("journal") or e.get("message", "")))))
     return out
@@ -250,13 +257,16 @@ def executer(ops, client: str, numero: int, iterations_max: int, generation: str
     """Boucle complète à partir de l'import `numero` ; renvoie l'état final de la boucle (aussi enregistré)."""
     debut = datetime.now().isoformat(timespec="seconds")
     analyse = ops.analyse(numero)
-    echecs = cb.classer(analyse)
+    lire_defauts = getattr(ops, "defauts_agent", None) or (lambda: [])
+    defauts = lire_defauts()
+    echecs = cb.classer(analyse, defauts)
     if not fonctionnalite:
         specs = ops.scenarios_agent()
         fonctionnalite = ",".join(sorted({specs.get(e["id"], {}).get("spec", "") for e in echecs} - {""}))
     boucle = {"generation": generation, "projet": client, "fonctionnalite": fonctionnalite, "etat": cb.EN_COURS,
               "iteration": 0, "iterations_max": iterations_max, "debut": debut, "import_initial": numero,
-              "initial": {"echecs": len(cb.echoues(analyse)), "par_categorie": cb.par_categorie(echecs)},
+              "initial": {"echecs": len(cb.echoues(analyse)), "defauts_agent": len(defauts),
+                          "par_categorie": cb.par_categorie(echecs)},
               "iterations": [], "corrections": [], "annulations": [], "signalements": [], "raison": "",
               "cout_devtool_usd": 0.0, "cout_cucumber_usd": 0.0, "cout_usd": 0.0}
     partagees = ops.steps_partagees()
@@ -291,7 +301,8 @@ def executer(ops, client: str, numero: int, iterations_max: int, generation: str
             boucle["etat"], boucle["raison"] = cb.TERMINEE, "aucun échec AGENT ou INCERTAIN"
             break
         boucle["iteration"] = i
-        it = {"numero": i, "import": numero, "envoyes": len(details), "echecs_avant": len(cb.echoues(analyse))}
+        it = {"numero": i, "import": numero, "envoyes": len(details),
+              "echecs_avant": len(cb.echoues(analyse)) + len(defauts)}
         boucle["iterations"].append(it)
         sauver()
         reponse = demander(i, details, annuler)
@@ -319,7 +330,11 @@ def executer(ops, client: str, numero: int, iterations_max: int, generation: str
             boucle["etat"], boucle["raison"] = cb.ABANDONNEE, message
             break
         avant_commit = ops.head()
-        it["regeneration"] = ops.regenerer(numero)
+        if defauts:
+            # Lots restés en erreur à cause de l'agent : repris avec l'agent corrigé avant la régénération
+            it["reprise_lots"] = ops.reprendre()
+        if cb.a_envoyer([e for e in echecs if e.get("nature") != "defaut_agent"]):
+            it["regeneration"] = ops.regenerer(numero)
         modifies = ops.fichiers_modifies(avant_commit)
         controle = cb.controler_regeneration(ops.lire(modifies, avant_commit), ops.lire(modifies), partagees)
         it["anti_triche"], it["signalements"] = controle["violations"], controle["signalements"]
@@ -334,20 +349,21 @@ def executer(ops, client: str, numero: int, iterations_max: int, generation: str
             boucle["etat"], boucle["raison"] = cb.ABANDONNEE, "run Jenkins de vérification impossible (voir le journal)"
             break
         suivante = ops.analyse(nouveau)
-        echecs_suivants = cb.classer(suivante)
+        defauts_suivants = lire_defauts()
+        echecs_suivants = cb.classer(suivante, defauts_suivants)
         for e in echecs_suivants:   # échec d'une feature rétablie par l'anti-triche : cause non prouvée
             if e.get("fichier") in fautifs and e["categorie_boucle"] == cb.AGENT:
                 e["categorie_boucle"] = cb.INCERTAIN
         perimetre = set((suivante.get("resultats") or {}))
-        avant = len(cb.echoues(analyse) & perimetre) if perimetre else len(cb.echoues(analyse))
-        apres = len(cb.echoues(suivante))
+        avant = (len(cb.echoues(analyse) & perimetre) if perimetre else len(cb.echoues(analyse))) + len(defauts)
+        apres = len(cb.echoues(suivante)) + len(defauts_suivants)
         regs = cb.regressions(analyse, suivante, perimetre)
         it.update(import_verification=nouveau, echecs_avant=avant, echecs_apres=apres, regressions=regs, tags=tags)
         if regs and dernier_commit:
             annuler = {"commit": dernier_commit, "raison": f"régression : {len(regs)} scénario(s) passaient avant "
                                                            f"cette correction ({', '.join(regs[:5])})"}
         etat, raison = cb.decider(i, iterations_max, avant, apres, len(cb.a_envoyer(echecs_suivants)), statut)
-        analyse, echecs, numero = suivante, echecs_suivants, nouveau
+        analyse, echecs, numero, defauts = suivante, echecs_suivants, nouveau, defauts_suivants
         if etat != cb.EN_COURS:
             boucle["etat"], boucle["raison"] = etat, raison
             break
@@ -376,6 +392,16 @@ def executer(ops, client: str, numero: int, iterations_max: int, generation: str
 
 
 # --- points d'entrée ----------------------------------------------------------------------------------------------
+def defauts_agent(client: str) -> list:
+    """Défauts de l'agent de la dernière génération du client ; [] si l'état est illisible (jamais bloquant)."""
+    from tools import cucumber_agent_defects, cucumber_tools
+    try:
+        state = cucumber_tools.load_state(client)
+        return cucumber_agent_defects.failures(state if isinstance(state, dict) else {})
+    except (OSError, ValueError, AttributeError, TypeError):
+        return []
+
+
 def declencher(client: str, argv: list, log=print, lancer=subprocess.Popen) -> str:
     """Fin d'un run Jenkins : lance la boucle (processus détaché) si des échecs AGENT ou INCERTAIN restent.
     Renvoie l'identifiant de la boucle, '' si elle n'est pas lancée."""
@@ -385,7 +411,8 @@ def declencher(client: str, argv: list, log=print, lancer=subprocess.Popen) -> s
     numero = max((e["numero"] for e in cucumber_import.load_index(client).get("imports", [])), default=0)
     if not numero:
         return ""
-    echecs = cb.classer(cucumber_import.load_analysis(client, numero))
+    defauts = defauts_agent(client)
+    echecs = cb.classer(cucumber_import.load_analysis(client, numero), defauts)
     envoyes = cb.a_envoyer(echecs)
     if not envoyes:
         if echecs:
@@ -400,7 +427,9 @@ def declencher(client: str, argv: list, log=print, lancer=subprocess.Popen) -> s
     with open(os.path.join(chemin, f"{generation}.log"), "a", encoding="utf-8") as sortie:
         lancer(commande, stdout=sortie, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                env={**os.environ, "CUCUMBER_BOUCLE_GENERATION": generation}, cwd=os.getcwd(), **options)
-    log(f"[BOUCLE] {len(envoyes)} échec(s) dû(s) à l'agent ou incertain(s) : boucle de correction autonome "
+    log(f"[BOUCLE] {len(envoyes)} échec(s) dû(s) à l'agent ou incertain(s)"
+        + (f", dont {len(defauts)} défaut(s) de l'agent hors run (lots en erreur, constats)" if defauts else "")
+        + " : boucle de correction autonome "
         f"{generation} lancée (au plus {cb.max_iterations()} itération(s)) ; rapport dans {chemin}.")
     return generation
 

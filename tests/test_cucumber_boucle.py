@@ -238,6 +238,36 @@ def test_boucle_terminee_quand_tout_passe():
     assert boucle["final"]["echecs"] == 0 and not boucle["relance"]
 
 
+def test_boucle_envoie_les_defauts_de_l_agent_hors_run_et_reprend_les_lots():
+    """Lot resté en erreur de fichiers (contrôle d'une leçon faux) : envoyé à dev-tool, puis lot repris, sans run
+    Jenkins en échec ; la boucle se termine quand la reprise a fait disparaître le défaut."""
+    class OpsDefauts(FausseOps):
+        def __init__(self, *a):
+            super().__init__(*a)
+            self.defauts, self.reprises, self.regenerations = [{"id": "lot7::fichiers", "fichier": "a.feature",
+                                                                "titre": "Lot 7 : erreur de fichiers persistante",
+                                                                "step": "", "message": "leçon n° 31 non appliquée",
+                                                                "categorie": "correction", "nature": "defaut_agent",
+                                                                "cause": "contrôle inversé (lecons.json)"}], 0, 0
+
+        def defauts_agent(self):
+            return list(self.defauts)
+
+        def reprendre(self):
+            self.reprises += 1
+            self.defauts = []
+            return 0
+
+        def regenerer(self, numero):
+            self.regenerations += 1
+            return 0
+    ops = OpsDefauts({1: _analyse({"f::A": "passe"}), 2: _analyse({"f::A": "passe"})}, [CORRIGE])
+    boucle = _executer(ops)
+    assert ops.demandes[0]["echecs"][0]["nature"] == "defaut_agent" and ops.demandes[0]["echecs"][0]["categorie"] == cb.AGENT
+    assert ops.reprises == 1 and ops.regenerations == 0           # rien à régénérer côté Jenkins
+    assert boucle["etat"] == cb.TERMINEE and boucle["initial"]["defauts_agent"] == 1
+
+
 def test_boucle_limite_iterations():
     analyses = {1: _analyse({f"f::{c}": "echoue" for c in "ABCD"}),
                 2: _analyse({"f::A": "passe", "f::B": "echoue", "f::C": "echoue", "f::D": "echoue"}),

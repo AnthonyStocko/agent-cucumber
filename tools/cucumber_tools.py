@@ -3581,9 +3581,10 @@ CONSTAT_TYPES = {"donnee_introuvable": "donnée introuvable",
                  "ecart_spec_code": "écart entre spécification et code",
                  "defaut_code": "défaut du code spécifique ou du Studio",
                  "comportement_surprenant": "comportement surprenant du code fourni",
-                 "tautologique": "scénario tautologique écarté"}
+                 "tautologique": "scénario tautologique écarté",
+                 "defaut_agent": "défaut de l'agent (contrôle, leçon, prompt, données de travail)"}
 # Défauts et doutes sur le code fourni (bilan après import) ; leur certitude : « prouvé » exige une preuve citée
-DOUBT_TYPES = ("ecart_spec_code", "defaut_code", "comportement_surprenant")
+DOUBT_TYPES = ("ecart_spec_code", "defaut_code", "comportement_surprenant", "defaut_agent")
 CERTAINTIES = ("prouvé", "probable", "à vérifier")
 # Champs facultatifs d'un constat (défaut ou doute sur le code fourni) et leur longueur maximale
 CONSTAT_FIELDS = {"ligne": 20, "extrait": 300, "effet": 300, "preuve": 300, "correction": 300}

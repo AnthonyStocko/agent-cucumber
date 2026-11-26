@@ -167,3 +167,60 @@ def test_external_connections_of_the_copy_are_listed_without_credentials():
     lines = cc.connections_lines(found)
     assert "INIT- Configuration du colisage" in lines[0] and "token" not in " ".join(lines)
     assert cc.new_reference_entry("s", "t", "v", "d", {}, "", found)["branchements"] == found
+
+
+def test_forbidden_prefix_control_and_self_contradicting_control(tmp_path):
+    feature = ("Feature: F\n  Scenario: S\n    Given CONTENT- Le stock suivant dans une UM nouvelle\n"
+               "      | wmsLocationCode | quantity |\n      | FAT.L53.01.13.1 | 1 |\n")
+    write(str(tmp_path / REL), feature)
+    forbid = {"type": "valeur_prefixe_interdit", "step": "CONTENT- Le stock suivant dans une UM nouvelle",
+              "colonne": "wmsLocationCode", "prefixe": "FAT.L53.01.00."}
+    lesson = {"numero": 31, "regle": "pas de réserve FAT de niveau .00.", "controle": forbid}
+    assert cl.check_files(str(tmp_path), [REL], [lesson]) == []
+    write(str(tmp_path / REL), feature.replace("FAT.L53.01.13.1", "FAT.L53.01.00.3"))
+    error = cl.check_files(str(tmp_path), [REL], [lesson])[0]
+    assert "FAT.L53.01.00.3" in error[:160] and "préfixe interdit" in error
+    # Contrôle écrit à l'envers (préfixe imposé) : la correction conforme le contredit, il est détecté
+    write(str(tmp_path / REL), feature)
+    wrong = {"regle": lesson["regle"], "controle": {**forbid, "type": "valeur_prefixe"}}
+    assert cl.contradicted_control(str(tmp_path), [REL], wrong)
+    assert cl.contradicted_control(str(tmp_path), [REL], {"regle": "r", "controle": forbid}) == []
+    assert cl.contradicted_control(str(tmp_path), [REL], {"regle": "r", "controle": {}}) == []
+
+
+def test_forbidden_prefix_control_and_self_contradicting_control(tmp_path):
+    feature = ("Feature: F\n  Scenario: S\n    Given CONTENT- Le stock suivant dans une UM nouvelle\n"
+               "      | wmsLocationCode | quantity |\n      | FAT.L53.01.13.1 | 1 |\n")
+    write(str(tmp_path / REL), feature)
+    forbid = {"type": "valeur_prefixe_interdit", "step": "CONTENT- Le stock suivant dans une UM nouvelle",
+              "colonne": "wmsLocationCode", "prefixe": "FAT.L53.01.00."}
+    lesson = {"numero": 31, "regle": "pas de réserve FAT de niveau .00.", "controle": forbid}
+    assert cl.check_files(str(tmp_path), [REL], [lesson]) == []
+    write(str(tmp_path / REL), feature.replace("FAT.L53.01.13.1", "FAT.L53.01.00.3"))
+    error = cl.check_files(str(tmp_path), [REL], [lesson])[0]
+    assert "FAT.L53.01.00.3" in error[:160] and "préfixe interdit" in error
+    # Contrôle écrit à l'envers (préfixe imposé) : la correction conforme le contredit, il est détecté
+    write(str(tmp_path / REL), feature)
+    wrong = {"regle": lesson["regle"], "controle": {**forbid, "type": "valeur_prefixe"}}
+    assert cl.contradicted_control(str(tmp_path), [REL], wrong)
+    assert cl.contradicted_control(str(tmp_path), [REL], {"regle": "r", "controle": forbid}) == []
+    assert cl.contradicted_control(str(tmp_path), [REL], {"regle": "r", "controle": {}}) == []
+
+
+def test_forbidden_prefix_control_and_self_contradicting_control(tmp_path):
+    feature = ("Feature: F\n  Scenario: S\n    Given CONTENT- Le stock suivant dans une UM nouvelle\n"
+               "      | wmsLocationCode | quantity |\n      | FAT.L53.01.13.1 | 1 |\n")
+    write(str(tmp_path / REL), feature)
+    forbid = {"type": "valeur_prefixe_interdit", "step": "CONTENT- Le stock suivant dans une UM nouvelle",
+              "colonne": "wmsLocationCode", "prefixe": "FAT.L53.01.00."}
+    lesson = {"numero": 31, "regle": "pas de réserve FAT de niveau .00.", "controle": forbid}
+    assert cl.check_files(str(tmp_path), [REL], [lesson]) == []
+    write(str(tmp_path / REL), feature.replace("FAT.L53.01.13.1", "FAT.L53.01.00.3"))
+    error = cl.check_files(str(tmp_path), [REL], [lesson])[0]
+    assert "FAT.L53.01.00.3" in error[:160] and "préfixe interdit" in error
+    # Contrôle écrit à l'envers (préfixe imposé) : la correction conforme le contredit, il est détecté
+    write(str(tmp_path / REL), feature)
+    wrong = {"regle": lesson["regle"], "controle": {**forbid, "type": "valeur_prefixe"}}
+    assert cl.contradicted_control(str(tmp_path), [REL], wrong)
+    assert cl.contradicted_control(str(tmp_path), [REL], {"regle": "r", "controle": forbid}) == []
+    assert cl.contradicted_control(str(tmp_path), [REL], {"regle": "r", "controle": {}}) == []
