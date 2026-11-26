@@ -91,6 +91,7 @@ agent-dev-tool-savoye de corriger le code ou les prompts d'agent-cucumber, puis 
 | `environnement`, `hors_depot`, `hors_perimetre`, init en échec | `ENVIRONNEMENT` | non, rapporté |
 | cascade | catégorie de l'échec qui la cause | selon celle-ci |
 | inconnu | `INCERTAIN` | oui |
+| défaut de l'agent hors run (`cucumber_agent_defects`) : lot en erreur de fichiers ou de compilation persistante, constat `defaut_agent` ou constat « prouvé » sur un fichier de l'agent (code, prompts, `.tmp/cucumber/<client>/`, `lecons.json`) | `AGENT` (nature `defaut_agent`, id `lot<n>::<étape>`) | oui, même sans échec Jenkins ; après la correction, les lots en erreur sont repris (`--resume`) avant toute régénération |
 
 ### Contrat d'échange (JSON, `version: 1`)
 
@@ -107,7 +108,8 @@ agent-dev-tool-savoye de corriger le code ou les prompts d'agent-cucumber, puis 
 
 ### Déroulé
 
-1. Fin de `run_cucumber_jenkins` : si l'analyse compte au moins un échec `AGENT`/`INCERTAIN`, et hors boucle
+1. Fin de `run_cucumber_jenkins`, et fin d'une génération (`run_cucumber_client`) quand elle a produit un import
+   (run de livraison) ou laissé un défaut de l'agent : si l'analyse compte au moins un échec `AGENT`/`INCERTAIN`, et hors boucle
    (`CUCUMBER_BOUCLE_ID` absent), un processus détaché `main.py --boucle-correction --from-import <n>` est lancé
    (`CUCUMBER_BOUCLE=0` le désactive).
 2. Itération i ≤ N (`CUCUMBER_BOUCLE_MAX_ITERATIONS`, 3) : dev-tool démarré si besoin (superviseur), demande

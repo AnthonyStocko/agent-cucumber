@@ -23,7 +23,8 @@ MAX_PROMPT_LESSONS = 40
 CONTROL_TYPES = {
     "colonne_interdite": ("step", "colonne"),      # step dont la table ne doit pas porter cette colonne
     "colonne_requise": ("step", "colonne"),        # step dont la table doit porter cette colonne
-    "valeur_prefixe": ("step", "colonne", "prefixe"),  # valeurs de la colonne qui commencent par ce préfixe
+    "valeur_prefixe": ("step", "colonne", "prefixe"),  # chaque valeur de la colonne DOIT commencer par ce préfixe
+    "valeur_prefixe_interdit": ("step", "colonne", "prefixe"),  # aucune valeur de la colonne ne commence par ce préfixe
     "motif_java_interdit": ("motif",),             # expression régulière interdite dans les classes Java du lot
 }
 _STEP_LINE = re.compile(r"^\s*(?:Given|When|Then|And|But|\*|Soit|Quand|Alors|Et|Mais)\s+(.*?)\s*$")
@@ -182,7 +183,9 @@ def check_files(worktree: str, files: list, lessons: list) -> list:
             control = valid_control(lesson.get("controle"))
             if not control:
                 continue
-            label = f"{rel} : leçon n° {lesson['numero']} non appliquée — {lesson['regle']}"
+            # Valeur fautive avant la règle : l'affichage tronqué du journal la garde visible
+            head, rule = f"{rel} : leçon n° {lesson['numero']} non appliquée", f" — {lesson['regle']}"
+            label = head + rule
             if control["type"] == "motif_java_interdit":
                 if rel.endswith(".java") and re.search(control["motif"], text):
                     errors.append(label)
@@ -193,13 +196,27 @@ def check_files(worktree: str, files: list, lessons: list) -> list:
                 if step.strip() != control["step"]:
                     continue
                 if control["type"] == "colonne_interdite" and control["colonne"] in header:
-                    errors.append(f"{label} (l. {line})")
+                    errors.append(f"{head} (l. {line}){rule}")
                 elif control["type"] == "colonne_requise" and control["colonne"] not in header:
-                    errors.append(f"{label} (l. {line})")
-                elif control["type"] == "valeur_prefixe" and control["colonne"] in header:
-                    column = header.index(control["colonne"])
-                    bad = [r[column] for r in rows if column < len(r) and r[column]
-                           and not r[column].startswith(control["prefixe"]) and not r[column].startswith("$")]
+                    errors.append(f"{head} (l. {line}){rule}")
+                elif control["type"] in ("valeur_prefixe", "valeur_prefixe_interdit") and control["colonne"] in header:
+                    column, required = header.index(control["colonne"]), control["type"] == "valeur_prefixe"
+                    bad = [r[column] for r in rows if column < len(r) and r[column] and not r[column].startswith("$")
+                           and r[column].startswith(control["prefixe"]) != required]
                     if bad:
-                        errors.append(f"{label} (l. {line} : {', '.join(bad[:3])})")
+                        verb = "attendu" if required else "interdit"
+                        errors.append(f"{head} (l. {line} : {', '.join(bad[:3])} ; préfixe {verb} "
+                                      f"{control['prefixe']}){rule}")
     return errors
+
+
+def contradicted_control(worktree: str, files: list, candidate: dict) -> list:
+    """
+    Erreurs que le contrôle d'une leçon candidate relève sur les fichiers que la correction vient d'écrire. Une
+    correction réussie respecte sa propre leçon : des erreurs ici prouvent un contrôle mal écrit (ex. préfixe
+    imposé au lieu d'interdit), qui bloquerait toutes les corrections suivantes. [] si le contrôle est cohérent.
+    """
+    if not (candidate or {}).get("controle"):
+        return []
+    return check_files(worktree, files, [{"numero": "?", "regle": candidate.get("regle", ""),
+                                          "controle": candidate["controle"]}])

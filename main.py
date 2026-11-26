@@ -80,7 +80,7 @@ from agent_socle import (bitbucket_std,
     skills)
 from agent_socle.jira_cli import attach_files, create_or_get_issue
 from tools import cucumber_java21, cucumber_repo_setup, cucumber_simple, cucumber_simple_init
-from tools import cucumber_boucle_run, cucumber_configuration
+from tools import cucumber_agent_defects, cucumber_boucle_run, cucumber_configuration, cucumber_working_memory
 from agent_socle import jira_guard, odatio_docs
 from agent_socle.chemins import DATA_DIR
 # Dossier des modules du socle (CLI lancées par Claude : db_tools, bitbucket_code, groundcover_tools…)
