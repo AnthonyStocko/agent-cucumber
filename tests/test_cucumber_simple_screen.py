@@ -65,7 +65,7 @@ def project(tmp_path, monkeypatch):
 class FakeWriter:
     """main.py simulé : écrit un test par fonctionnalité demandée (commit dans l'espace de travail, résultats)."""
     def __new__(cls, cmd, **kwargs):
-        if "main.py" not in cmd:
+        if not any(os.path.basename(str(c)) == "main.py" for c in cmd):
             return REAL_POPEN(cmd, **kwargs)
         return super().__new__(cls)
 

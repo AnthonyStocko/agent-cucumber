@@ -196,7 +196,7 @@ class FakePopen:
     """main.py simulé : contrôle d'environnement en échec (Maven indisponible), aucun lot, code 3. Les autres
     commandes (git) restent réelles."""
     def __new__(cls, cmd, **kwargs):
-        if "main.py" not in cmd:
+        if not any(os.path.basename(str(c)) == "main.py" for c in cmd):
             return REAL_POPEN(cmd, **kwargs)
         return super().__new__(cls)
 

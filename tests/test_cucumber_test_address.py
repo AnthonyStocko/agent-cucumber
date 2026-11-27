@@ -49,10 +49,11 @@ def test_default_address_is_the_generic_one_and_env_overrides_a_field(monkeypatc
     assert td.test_address({}) == DEFAULT and td.test_address(None) == DEFAULT
     monkeypatch.setenv("AGENT_TEST_ADDRESS_VILLE", "SAINT-ÉTIENNE")
     assert td.default_address()["ville"] == "SAINT-ÉTIENNE"
-    # Variables documentées dans .env.example
-    # Document de l'application : lu sous AGENT_DATA_DIR (même fichier qu'avant le découpage)
-    from agent_socle.chemins import DATA_DIR
-    with open(os.path.join(DATA_DIR, ".env.example"), encoding="utf-8") as f:
+    # Variables documentées dans .env.example : celui du .env partagé, dans agent-socle (repris d'agent-scrum-master,
+    # supprimé ; socle installé en éditable pendant le chantier)
+    import agent_socle
+    with open(os.path.join(os.path.dirname(os.path.dirname(agent_socle.__file__)), ".env.example"),
+              encoding="utf-8") as f:
         example = f.read()
     assert all(f"\n{env}=" in example for _, _, env, _, _ in td.ADDRESS_FIELDS)
 

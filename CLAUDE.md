@@ -15,12 +15,12 @@ Il est lancé et supervisé par `agent-manager-savoye` (port 8507) et peut être
 ## 2. Stack, structure et commandes
 
 - Python 3.12, Streamlit (`app.py`, IHM), CLI `main.py --step generate-cucumber-client …`, Claude Code CLI.
-- Venv : celui d'agent-scrum-master pendant le chantier (`..\agent-scrum-master\venv`, agent-socle en éditable).
-- Tests : `..\agent-scrum-master\venv\Scripts\python.exe -m pytest -q tests` (depuis ce dossier). Aucun linter.
-- Données : `AGENT_DATA_DIR` (défaut `..\agent-scrum-master`) ; par client : `.tmp/cucumber/<client>/` (worktree,
+- Venv : `venv\` de ce dépôt (agent-socle en éditable pendant le chantier) ; le manager lance l'agent avec lui.
+- Tests : `venv\Scripts\python.exe -m pytest -q tests` (depuis ce dossier). Aucun linter.
+- Données : `AGENT_DATA_DIR` (`C:\agent-data` ; défaut `..\agent-data`) ; par client : `.tmp/cucumber/<client>/` (worktree,
   `etat.json`, `imports/<n>/analyse.json`, `generation.lock`, `boucles/`).
-- Configuration : page ⚙️ de l'IHM, écrite dans `<AGENT_DATA_DIR>/.env` (le seul lu par l'IHM et `main.py` ; pendant
-  le chantier, celui d'agent-scrum-master, partagé). Groundcover : API, `CUCUMBER_GROUNDCOVER_FILTER` (à défaut
+- Configuration : page ⚙️ de l'IHM, écrite dans `<AGENT_DATA_DIR>/.env` (le seul lu par l'IHM et `main.py`, partagé
+  par tous les agents ; réglages globaux : manager, Configuration › Réglages des agents). Groundcover : API, `CUCUMBER_GROUNDCOVER_FILTER` (à défaut
   `logs.groundcover_filtre` de l'application du même nom dans `commun.toml` de `SAVOYE_CONFIG_DIR`, jamais écrit) et
   serveur MCP ; variables de `SAVOYE_VARIABLES` en lecture seule, jamais réécrites.
 

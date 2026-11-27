@@ -9,10 +9,11 @@ Code repris tel quel d'agent-scrum-master (phase 6 du découpage) ; `main.py` et
 | IHM | `streamlit run app.py` (port 8507) : onglets « Cucumber » et « Cucumber (avancé) » |
 | CLI | `python main.py --step generate-cucumber-client\|generate-cucumber-postmerge\|restore-config …` |
 | Dépendance interne | `agent-socle` (seule) : `pip install -e ../agent-socle` pendant le chantier |
-| Données | `.tmp/cucumber…`, patchs et `.env` de `AGENT_DATA_DIR` (défaut `..\agent-scrum-master`) ; CLI et IHM s'y placent |
+| Venv | `venv\` de ce dépôt (le manager lance l'agent avec lui) : `py -3.12 -m venv venv`, `requirements.txt`, socle en éditable |
+| Données | `.tmp/cucumber…`, patchs et `.env` de `AGENT_DATA_DIR` (`C:\agent-data` ; défaut `..\agent-data`) ; CLI et IHM s'y placent |
 
-`agent-scrum-master` délègue ces étapes (`AGENT_CUCUMBER_DIR`) ; lancée depuis ce dépôt, l'IHM appelle le `main.py`
-d'agent-scrum-master (dossier de travail), qui relance celui-ci.
+Point d'entrée : le manager redirige vers cette IHM (8507). Lancée depuis ce dépôt, elle se place dans `AGENT_DATA_DIR`
+et appelle le `main.py` de ce dépôt par chemin absolu (agent-scrum-master, qui y déléguait, est supprimé).
 
 ## Boucle de correction autonome
 
