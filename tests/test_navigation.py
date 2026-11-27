@@ -31,7 +31,7 @@ def _app(monkeypatch, tmp_path, page: str = "") -> tuple:
 def test_search_criteria_kept_when_changing_page(monkeypatch, tmp_path):
     at, _ = _app(monkeypatch, tmp_path, "cucumber-avance")
     at.text_input(key="cucumber_repo").input("ABC").run()
-    at.session_state["nav_page"] = "cucumber"  # autre page de l'IHM Cucumber (Configuration : agent-scrum-master)
+    at.session_state["nav_page"] = "cucumber"  # autre page de l'IHM Cucumber (Configuration globale : manager, Réglages des agents)
     at.run()
     at.session_state["nav_page"] = "cucumber-avance"
     at.run()

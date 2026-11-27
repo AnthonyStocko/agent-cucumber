@@ -448,7 +448,7 @@ def build_postmerge_diff(repo_dir: str, merge_commit: str, base_commit: str, lab
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Agent Scrum Master - Cadrage, Patching & Cucumber")
+    parser = argparse.ArgumentParser(description="Agent Cucumber - tests Cucumber des clients")
     parser.add_argument("--issue", default="", help="Clé du ticket Jira (ex: PROJ-123) ; inutile pour generate-cucumber-client")
     parser.add_argument("--project", default="", help="Clé du projet Jira (ex: PROJ) ; inutile pour generate-cucumber-client")
     parser.add_argument("--client-repo", default="", help="Chemin local ou URL du dépôt client")
@@ -6868,7 +6868,7 @@ def finalize_postmerge(args, source_issue: str, summary: str, description_file: 
 
 
 if __name__ == "__main__":
-    # Fichiers produits relatifs au dossier courant : celui d'agent-scrum-master
+    # Fichiers produits relatifs au dossier courant : AGENT_DATA_DIR
     os.chdir(DATA_DIR)
     try:
         main()

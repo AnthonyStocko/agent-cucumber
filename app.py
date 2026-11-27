@@ -52,13 +52,14 @@ from agent_socle import jenkins_tools
 from agent_socle.chemins import DATA_DIR
 
 # Lancée depuis son dépôt, l'IHM travaille dans AGENT_DATA_DIR (.env, .tmp, fichiers produits au même endroit
-# qu'avant) ; « main.py » y est celui d'agent-scrum-master, qui délègue à agent-cucumber
+# qu'avant) ; ses commandes visent le main.py de ce dépôt par chemin absolu
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+MAIN_PY = os.path.join(AGENT_DIR, "main.py")
 if os.path.abspath(os.getcwd()) == AGENT_DIR:
     os.chdir(DATA_DIR)
 
 # Pleine largeur par défaut (tableaux, revues de PR, état des tests) ; APP_LAYOUT=centered pour une colonne centrale
-st.set_page_config(page_title="Scrum Master IA Dashboard",
+st.set_page_config(page_title="Tests Cucumber",
                    layout="centered" if (os.getenv("APP_LAYOUT") or dotenv_values(os.path.join(
                        os.path.dirname(os.path.abspath(__file__)), ".env")).get("APP_LAYOUT") or "").strip().lower()
                    == "centered" else "wide")
@@ -96,7 +97,7 @@ cucumber_configuration.designer_page()
 # Connexion OIDC (AGENT_AUTH) : rien n'est affiché ni exécuté avant elle
 CONNECTED = auth_tools.require_login(st)
 
-st.title("🤖 Tableau de bord - Agent Scrum Master")
+st.title("🥒 Tests Cucumber")
 
 
 # Navigation : seule la page choisie est exécutée (st.tabs exécutait toutes les pages à chaque interaction, avec
@@ -595,7 +596,7 @@ def cucumber_header() -> dict:
         if projects.get(client) != settings:
             cucumber_detection.save_project(client, settings)
     cucumber_cmd = [
-        sys.executable, "main.py",
+        sys.executable, MAIN_PY,
         "--step", "generate-cucumber-client",
         "--client-repo", repo_input,
         "--client-name", client,
@@ -1259,7 +1260,7 @@ def simple_context() -> dict:
     """Contexte de l'onglet simplifié : client, dépôts, commande main.py (mêmes options que l'onglet avancé)."""
     value = lambda key: (st.session_state.get(key) or "").strip()  # noqa: E731
     repo, client = value("cs_repo"), value("cs_client").lower() or cucumber_tools.client_name_from_repo(value("cs_repo"))
-    cmd = [sys.executable, "main.py", "--step", "generate-cucumber-client", "--client-repo", repo,
+    cmd = [sys.executable, MAIN_PY, "--step", "generate-cucumber-client", "--client-repo", repo,
            "--client-name", client, "--application", value("cs_application"),
            "--cucumber-std-repo", value("cs_std_repo"), *cucumber_modules.cli_args(client)]
     return {"client": client, "repo": repo, "std_repo": value("cs_std_repo"), "cmd": cmd,
@@ -1358,7 +1359,7 @@ def render_simple_base(ctx: dict, step: dict) -> None:
     if st.button("Recopier la configuration du client (essais locaux)", icon=":material/database:",
                  key=f"cs_base_{ctx['client']}", disabled=not (target and source and confirm.strip() == target)
                  or step["etat"] == "bloquee"):
-        code = run_main_step([sys.executable, "main.py", "--step", "restore-config", "--client-name", ctx["client"],
+        code = run_main_step([sys.executable, MAIN_PY, "--step", "restore-config", "--client-name", ctx["client"],
                               "--source-schema", source, "--target-schema", target])
         entry = (db_restore.load_history(ctx["client"]) or [{}])[-1]
         state = cucumber_tools.load_state(ctx["client"])
@@ -1396,7 +1397,7 @@ def render_copied_reference(ctx: dict, step: dict, profile: dict) -> None:
     if st.button("Copier la configuration du client (référence des runs)", icon=":material/database:",
                  type="primary", key=f"cs_copied_base_{client}",
                  disabled=not (target and source and confirm.strip() == target) or step["etat"] == "bloquee"):
-        code = run_main_step([sys.executable, "main.py", "--step", "restore-config", "--client-name", client,
+        code = run_main_step([sys.executable, MAIN_PY, "--step", "restore-config", "--client-name", client,
                               "--source-schema", source, "--target-schema", target, "--copied-reference"])
         entry = (db_restore.load_history(client) or [{}])[-1]
         state = cucumber_tools.load_state(client)
@@ -2446,7 +2447,7 @@ def render_backup_restore(client: str, history: list, prefix: str) -> None:
     if st.button("Restaurer la sauvegarde", icon=":material/undo:",
                  disabled=not backup_schema or back_confirm.strip() != backup_schema, key=f"{prefix}_back_{client}"):
         with st.spinner("Remise en place de la sauvegarde…"):
-            code = run_main_step([sys.executable, "main.py", "--step", "restore-config", "--client-name",
+            code = run_main_step([sys.executable, MAIN_PY, "--step", "restore-config", "--client-name",
                                   client, "--target-schema", backup_schema, "--backup", latest["sauvegarde"]])
         entry = (db_restore.load_history(client) or [{}])[-1]
         (st.success if code == 0 else st.error)(entry.get("message") or interruption_cause(code))
@@ -2486,7 +2487,7 @@ def render_client_config_restore(ctx: dict) -> None:
         if st.button("Recopier la config client", type="primary", icon=":material/sync:", disabled=not ok,
                      key=f"restore_run_{client}"):
             with st.spinner("Recopie de la config client (lecture, sauvegarde, remplacement)…"):
-                code = run_main_step([sys.executable, "main.py", "--step", "restore-config", "--client-name", client,
+                code = run_main_step([sys.executable, MAIN_PY, "--step", "restore-config", "--client-name", client,
                                       "--source-schema", source_schema, "--target-schema", target_schema])
             entry = (db_restore.load_history(client) or [{}])[-1]
             (st.success if code == 0 else st.error)(entry.get("message") or interruption_cause(code))
